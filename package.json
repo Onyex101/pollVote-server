@@ -1,12 +1,16 @@
 {
-  "name": "server.js",
+  "name": "pollVote",
   "version": "1.0.0",
-  "description": "",
+  "description": "Real-time voting system",
   "main": "server.js",
   "scripts": {
+    "start": "node server/server.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "author": "",
+  "engines": {
+    "node": "8.11.2"
+  },
+  "author": "Okoye Onyekachi A",
   "license": "ISC",
   "dependencies": {
     "bcryptjs": "^2.4.3",
