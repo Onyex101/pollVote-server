@@ -3,6 +3,7 @@ const validator = require('validator');
 const jwt = require('jsonwebtoken');
 const _ = require('lodash');
 const bcrypt = require('bcryptjs');
+const secret = process.env.JWT_SECRET;
 
 var userSchema = new mongoose.Schema({
     full_name: {
@@ -82,7 +83,7 @@ var userSchema = new mongoose.Schema({
 userSchema.methods.generateAuthToken = function () {
     var user = this;
     var access = 'auth';
-    var token = jwt.sign({ _id: user._id.toHexString(), access }, '123abc').toString();
+    var token = jwt.sign({ _id: user._id.toHexString(), access }, secret).toString();
     user.tokens.push({ access, token });
     return user.save().then(() => {
         return token;
@@ -105,7 +106,7 @@ userSchema.statics.findByToken = function (token) {
     var User = this;
     var decoded;
     try {
-        decoded = jwt.verify(token, '123abc');
+        decoded = jwt.verify(token, secret);
     } catch (e) {
         return Promise.reject();
     };
