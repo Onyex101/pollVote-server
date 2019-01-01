@@ -7,6 +7,8 @@ const {voteAuth} = require('./../../middleware/voter-auth');
 const {Voter} = require('./../../models/voter');
 const {Poll} = require('./../../models/poll');
 const {User} = require('./../../models/user');
+const pusher = require('./../../server/pusher');
+
 var router = express.Router();
 router.use(bodyParser.urlencoded({extended: true}));
 router.use(bodyParser.json());
@@ -93,6 +95,16 @@ router.post('/poll', voteAuth, (req, res) => {
                 });
             }).catch((err) => res.status(400).send({err}));
         }
+    }).catch((err) => {
+        res.status(400).send({err});
+    });
+});
+
+router.delete('/logout', voteAuth, (req, res) => {
+    req.voter.removeToken(req.token).then(() => {
+        res.send({
+            message: 'Admin logged out'
+        });
     }).catch((err) => {
         res.status(400).send({err});
     });
