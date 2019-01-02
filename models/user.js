@@ -37,6 +37,22 @@ var userSchema = new mongoose.Schema({
         required: true,
         minlength: 6
     },
+    pending: [{
+        full_name: {
+            type: String
+        },
+        email: {
+            type: String,
+            required: true,
+            trim: true,
+            minlenght: 1,
+            unique: true,
+            validate: {
+                validator: validator.isEmail,
+                massage: '{value} is not a valid email'
+            }
+        }
+    }],
     authorised: [{
         full_name: {
             type: String
@@ -76,7 +92,7 @@ var userSchema = new mongoose.Schema({
 // userSchema.methods.toJSON = function () {
 //     var user = this;
 //     var userObject = user.toObject();
-//     return _.pick(userObject, ['_id', 'user_name', 'email']);
+//     return _.pick(userObject, ['_id', 'user_name', 'full_name', 'email']);
 // };
 
 // Instance methods

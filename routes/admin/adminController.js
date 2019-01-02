@@ -101,10 +101,63 @@ router.delete('/delete/:id', (req, res) => {
 router.get('/pending', authenticate, (req, res) => {
     var id = req.user._id;
     User.findById(id).then((user) => {
-        res.send(user.pending);
+        res.send({pending: user.pending});
     }).catch((err) => {
         res.status(400).send(err);
     })
+});
+
+/**
+ * convert pending voters to
+ * authorized voters
+ */
+router.post('/pend-auth', authenticate, (req, res) => {
+    var body = req.body;
+    var id = req.user._id;
+    for (var i = 0; i < body.pending.length; i++) {
+        var pend = body.pending[i];
+        User.update({
+            _id: id,
+            pending: {
+                $elemMatch: {
+                    full_name: pend.full_name,
+                    email: pend.email
+                }
+            }
+        },{
+            $pull: {
+                pending: pend
+            }
+        }).then((user) => {
+            if (!user) {
+                res.status(400).send({error});
+            }
+            User.update({_id: id},{
+                $push: {
+                    authorised: pend
+                }
+            }).then(() => {
+                res.send({message: 'voter was succesfully authorized'});
+            }).catch((e) => {
+                res.status(400).send({e});
+            })
+        }).catch((err) => {
+            res.send(err);
+        });
+    }
+    
+})
+
+/**
+ * view authorised users
+ */
+router.get('/authorised', authenticate, (req, res) => {
+    var id = req.user._id;
+    User.findById(id).then((user) => {
+        res.send(user.authorised);
+    }).catch((err) => {
+        res.status(400).send({err});
+    });
 });
 
 /**

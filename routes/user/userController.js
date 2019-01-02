@@ -32,13 +32,30 @@ router.post('/login', (req, res) => {
     var body = _.pick(req.body, ['user_name', 'code', 'password']);
     Voter.findByCredentials(body.user_name, body.password).then((voter) => {
         voter.generateAuthToken().then((token) => {
-            User.update({code: body.code}, {
-                $set: {
-                    authorised: {full_name: voter.full_name, email: voter.email}
+            User.find({
+                code: body.code,
+                authorised: {
+                    $elemMatch: {
+                        full_name: voter.full_name,
+                        email: voter.email
+                    }
                 }
-            }).then(() => {
-                res.header('x-auth', token).send(voter);
-            });
+            }).then((user) => {
+                let test = _.isEmpty(user);
+                if ((test === true) || !user) {
+                    User.update({code: body.code}, {
+                        $push: {
+                            pending: {full_name: voter.full_name, email: voter.email}
+                        }
+                    }).then(() => {
+                        res.header('x-auth', token).send(voter);
+                    });
+                } else {
+                    res.header('x-auth', token).send(voter);
+                }
+            }).catch((e) => {
+                res.status(400).send({e});
+            })
         });
     }).catch ((err) => {
         res.status(400).send({err});
