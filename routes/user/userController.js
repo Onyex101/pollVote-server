@@ -70,13 +70,32 @@ router.post('/login', (req, res) => {
  */
 router.post('/get-code', voteAuth, (req, res) => {
     var code = _.pick(req.body, ['code']);
-    Poll.findOne({ code: code.code }).then((poll) => {
-        if (!poll) {
-            res.status(400).send({ message: 'no poll' });
-        };
-        res.send(poll);
-    }).catch((err) => {
-        res.status(400).send(err);
+    User.find(
+        {
+            code: code.code,
+            authorised: {
+                $elemMatch: {
+                    full_name: req.voter.full_name,
+                    hasVoted: false
+                }
+            }
+        }
+    ).then((val) => {
+        let test = _.isEmpty(val);
+        if (test === true) {
+            res.send({ message: 'Already Voted!' });
+        } else {
+            Poll.findOne({ code: code.code }).then((poll) => {
+                if (!poll) {
+                    res.status(400).send({ message: 'no poll' });
+                };
+                res.send(poll);
+            }).catch((err) => {
+                res.status(400).send(err);
+            });
+        }
+    }).catch((e) => {
+        res.status(400).send({e});
     });
 });
 
