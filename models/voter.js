@@ -47,11 +47,11 @@ var voterSchema = new mongoose.Schema({
  * overrides a method to limit the amount of info
  * from db that is being returned to the user
  */
-// userSchema.methods.toJSON = function () {
-//     var user = this;
-//     var userObject = user.toObject();
-//     return _.pick(userObject, ['_id', 'user_name', 'email']);
-// };
+voterSchema.methods.toJSON = function () {
+    var voter = this;
+    var voterObject = voter.toObject();
+    return _.pick(voterObject, ['_id', 'user_name', 'email']);
+};
 
 // Instance methods
 voterSchema.methods.generateAuthToken = function () {

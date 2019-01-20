@@ -8,7 +8,8 @@ const secret = process.env.JWT_SECRET;
 var userSchema = new mongoose.Schema({
     full_name: {
         type: String,
-        required: true
+        required: true,
+        unique: true
     },
     code: {
         type: String,
@@ -89,11 +90,11 @@ var userSchema = new mongoose.Schema({
  * overrides a method to limit the amount of info
  * from db that is being returned to the user
  */
-// userSchema.methods.toJSON = function () {
-//     var user = this;
-//     var userObject = user.toObject();
-//     return _.pick(userObject, ['_id', 'user_name', 'full_name', 'email']);
-// };
+userSchema.methods.toJSON = function () {
+    var user = this;
+    var userObject = user.toObject();
+    return _.pick(userObject, ['_id', 'user_name', 'email', 'pending', 'authorised']);
+};
 
 // Instance methods
 userSchema.methods.generateAuthToken = function () {

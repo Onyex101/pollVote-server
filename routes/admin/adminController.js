@@ -6,6 +6,7 @@ const {ObjectID} = require('mongodb');
 var {User} = require('./../../models/user');
 var {authenticate} = require('./../../middleware/authentication');
 var {Poll} = require('./../../models/poll');
+const message = require('./../../misc/message');
 
 var router = express.Router();
 router.use(bodyParser.urlencoded({extended: true}));
@@ -20,7 +21,7 @@ router.post('/signup', (req, res) => {
     user.save().then((user) => {
         return user.generateAuthToken();
     }).then((token) => {
-        res.header('x-auth', token).send(user);
+        res.header('x-auth', token).send({message: message.admin.signUp});
     }).catch((err) => {
         res.status(400).send(err);
     });
@@ -34,11 +35,19 @@ router.post('/login', (req, res) => {
     var body = _.pick(req.body, ['user_name', 'password']);
     User.findByCredentials(body.user_name, body.password).then((user) => {
         user.generateAuthToken().then((token) => {
-            res.header('x-auth', token).send(user);
+            res.header('x-auth', token).send({message: message.admin.login});
         });
     }).catch ((err) => {
         res.status(400).send({err});
     });
+});
+
+
+router.get('/home', authenticate, (req, res) => {
+    var user = req.user;
+    Poll.find({_userID: user._id}).then((val) => {
+        res.send({user, val, pending: user.pending, auth: user.authorised});
+    })
 });
 
 /**
@@ -54,7 +63,7 @@ router.post('/new-poll', authenticate, (req, res) => {
     };
     var newPoll = new Poll(body);
     newPoll.save().then((poll) => {
-        res.send(poll);
+        res.send({message: message.admin.poll});
     }).catch((err) => {
         res.status(400).send(err);
     });
@@ -67,7 +76,7 @@ router.get('/all-polls', authenticate, (req, res) => {
     var id = req.user._id;
     Poll.find({_userID: id}).then((polls) => {
         if (!polls) {
-            res.send('no poll found');
+            res.send({message: 'no poll found'});
         };
         res.send(polls);
     }).catch((err) => {
@@ -86,7 +95,7 @@ router.delete('/delete/:id', (req, res) => {
     Poll.findByIdAndDelete(id).then((poll) => {
         if (!poll) {
             res.send({
-                message: 'Sorry, this poll does not exist'
+                message: 'Sorry, poll does not exist'
             });
         }
         res.send(poll);
@@ -101,7 +110,7 @@ router.delete('/delete/:id', (req, res) => {
 router.get('/pending', authenticate, (req, res) => {
     var id = req.user._id;
     User.findById(id).then((user) => {
-        res.send({pending: user.pending});
+        res.send(user.pending);
     }).catch((err) => {
         res.status(400).send(err);
     })
@@ -159,6 +168,20 @@ router.get('/authorised', authenticate, (req, res) => {
         res.status(400).send({err});
     });
 });
+
+/**
+ * check current results
+ */
+router.get('/results', authenticate, (req, res) => {
+    Poll.findOne({
+        _userID: res.user._id,
+        code: res.user.code
+    }).then((poll) => {
+        res.send({ result: poll.options });
+    }).catch((e) => {
+        res.status(400).send({e});
+    });
+})
 
 /**
  * log out
