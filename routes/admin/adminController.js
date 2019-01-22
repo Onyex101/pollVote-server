@@ -1,15 +1,16 @@
 var express = require('express');
 var bodyParser = require('body-parser');
 var _ = require('lodash');
-const {ObjectID} = require('mongodb');
+const { ObjectID } = require('mongodb');
 
-var {User} = require('./../../models/user');
-var {authenticate} = require('./../../middleware/authentication');
-var {Poll} = require('./../../models/poll');
+var { User } = require('./../../models/user');
+var { authenticate } = require('./../../middleware/authentication');
+var { Poll } = require('./../../models/poll');
 const message = require('./../../misc/message');
+const pusher = require('./../../server/pusher');
 
 var router = express.Router();
-router.use(bodyParser.urlencoded({extended: true}));
+router.use(bodyParser.urlencoded({ extended: true }));
 router.use(bodyParser.json());
 
 /**
@@ -21,7 +22,7 @@ router.post('/signup', (req, res) => {
     user.save().then((user) => {
         return user.generateAuthToken();
     }).then((token) => {
-        res.header('x-auth', token).send({message: message.admin.signUp});
+        res.header('x-auth', token).send({ message: message.admin.signUp });
     }).catch((err) => {
         res.status(400).send(err);
     });
@@ -35,18 +36,19 @@ router.post('/login', (req, res) => {
     var body = _.pick(req.body, ['user_name', 'password']);
     User.findByCredentials(body.user_name, body.password).then((user) => {
         user.generateAuthToken().then((token) => {
-            res.header('x-auth', token).send({message: message.admin.login});
+            res.header('x-auth', token).send({ message: message.admin.login });
         });
-    }).catch ((err) => {
-        res.status(400).send({err});
+    }).catch((err) => {
+        res.status(400).send({ err });
     });
 });
 
 
 router.get('/home', authenticate, (req, res) => {
     var user = req.user;
-    Poll.find({_userID: user._id}).then((val) => {
-        res.send({user, val, pending: user.pending, auth: user.authorised});
+    Poll.find({ _userID: user._id }).then((val) => {
+        const data = { user, val, pending: user.pending, auth: user.authorised };
+        res.send(data);
     })
 });
 
@@ -63,7 +65,7 @@ router.post('/new-poll', authenticate, (req, res) => {
     };
     var newPoll = new Poll(body);
     newPoll.save().then((poll) => {
-        res.send({message: message.admin.poll});
+        res.send({ message: message.admin.poll });
     }).catch((err) => {
         res.status(400).send(err);
     });
@@ -74,9 +76,9 @@ router.post('/new-poll', authenticate, (req, res) => {
  */
 router.get('/all-polls', authenticate, (req, res) => {
     var id = req.user._id;
-    Poll.find({_userID: id}).then((polls) => {
+    Poll.find({ _userID: id }).then((polls) => {
         if (!polls) {
-            res.send({message: 'no poll found'});
+            res.send({ message: 'no poll found' });
         };
         res.send(polls);
     }).catch((err) => {
@@ -89,8 +91,8 @@ router.get('/all-polls', authenticate, (req, res) => {
  */
 router.delete('/delete/:id', (req, res) => {
     var id = req.params.id;
-    if(!ObjectID.isValid(id)) {
-        return res.status(404).send({message: 'invalid id'});
+    if (!ObjectID.isValid(id)) {
+        return res.status(404).send({ message: 'invalid id' });
     };
     Poll.findByIdAndDelete(id).then((poll) => {
         if (!poll) {
@@ -133,28 +135,28 @@ router.post('/pend-auth', authenticate, (req, res) => {
                     email: pend.email
                 }
             }
-        },{
-            $pull: {
-                pending: pend
-            }
-        }).then((user) => {
-            if (!user) {
-                res.status(400).send({error});
-            }
-            User.update({_id: id},{
-                $push: {
-                    authorised: pend
+        }, {
+                $pull: {
+                    pending: pend
                 }
-            }).then(() => {
-                res.send({message: 'voter was succesfully authorized'});
-            }).catch((e) => {
-                res.status(400).send({e});
-            })
-        }).catch((err) => {
-            res.send(err);
-        });
+            }).then((user) => {
+                if (!user) {
+                    res.status(400).send({ error });
+                }
+                User.update({ _id: id }, {
+                    $push: {
+                        authorised: pend
+                    }
+                }).then(() => {
+                    res.send({ message: 'voter was succesfully authorized' });
+                }).catch((e) => {
+                    res.status(400).send({ e });
+                })
+            }).catch((err) => {
+                res.send(err);
+            });
     }
-    
+
 })
 
 /**
@@ -165,7 +167,7 @@ router.get('/authorised', authenticate, (req, res) => {
     User.findById(id).then((user) => {
         res.send(user.authorised);
     }).catch((err) => {
-        res.status(400).send({err});
+        res.status(400).send({ err });
     });
 });
 
@@ -179,7 +181,7 @@ router.get('/results', authenticate, (req, res) => {
     }).then((poll) => {
         res.send({ result: poll.options });
     }).catch((e) => {
-        res.status(400).send({e});
+        res.status(400).send({ e });
     });
 })
 
@@ -192,7 +194,7 @@ router.delete('/logout', authenticate, (req, res) => {
             message: 'Admin logged out'
         });
     }).catch((err) => {
-        res.status(400).send({err});
+        res.status(400).send({ err });
     });
 });
 
