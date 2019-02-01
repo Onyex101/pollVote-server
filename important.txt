@@ -1,0 +1,10 @@
+https://www.codementor.io/olatundegaruba/5-steps-to-authenticating-node-js-with-jwt-7ahb5dmyr?icn=post-ag2pmlck0&ici=post-7ahb5dmyr
+
+https://www.codementor.io/olatundegaruba/password-reset-using-jwt-ag2pmlck0
+
+https://www.sitepoint.com/user-authentication-mean-stack/
+
+https://www.smashingmagazine.com/2017/11/safe-password-resets-with-json-web-tokens/
+
+
+https://www.c-sharpcorner.com/blogs/forgot-password-email-notification-using-node-js

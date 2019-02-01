@@ -2,12 +2,14 @@ var express = require('express');
 var bodyParser = require('body-parser');
 var _ = require('lodash');
 const { ObjectID } = require('mongodb');
+var jwt = require('jsonwebtoken');
+const bcrypt = require('bcryptjs');
+const sgMail = require('@sendgrid/mail');
 
 var { User } = require('./../../models/user');
 var { authenticate } = require('./../../middleware/authentication');
 var { Poll } = require('./../../models/poll');
 const message = require('./../../misc/message');
-const pusher = require('./../../server/pusher');
 
 var router = express.Router();
 router.use(bodyParser.urlencoded({ extended: true }));
@@ -28,6 +30,7 @@ router.post('/signup', (req, res) => {
     });
 });
 
+
 /**
  * login admin
  * public route
@@ -39,7 +42,7 @@ router.post('/login', (req, res) => {
             res.header('x-auth', token).send({ message: message.admin.login });
         });
     }).catch((err) => {
-        res.status(400).send({ err });
+        res.status(400).send({ message: 'please check username or password' });
     });
 });
 
@@ -197,5 +200,131 @@ router.delete('/logout', authenticate, (req, res) => {
         res.status(400).send({ err });
     });
 });
+
+
+/**
+ * reset password
+ */
+router.post('/reset-password', authenticate, (req, res) => {
+    const body = _.pick(req.body, ['email']);
+    async.waterfall([
+        function (done) {
+            User.findOne({ email: body.email }).then((user) => {
+                if (!user) {
+                    done('No account with that email address exists');
+                }
+                done(null, user);
+            }).catch((e) => {
+                done(e);
+            });
+        },
+        function (user, done) {
+            var payload = {
+                _id: user._id,
+                email: user.email
+            };
+            var secret = user.password + '-' + user.createdAt;
+            var token = jwt.sign(payload, secret);
+            done(null, user, token);
+        },
+        function (user, token, done) {
+            sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+            const msg = {
+                to: user.email,
+                from: 'pollVote-team@gmail.com',
+                subject: 'Password Reset',
+                text: 'You are receiving this because you (or someone else) have requested the reset of the password for your account.\n\n' +
+                    'Please click on the following link, or paste this into your browser to complete the process:\n\n' +
+                    process.env.URI + '/admin/reset/' + user._id + '/' + token + '\n\n' +
+                    'If you did not request this, please ignore this email and your password will remain unchanged.\n'
+              };
+            sgMail.send(msg).then((data) => {
+                done(null, data);
+            }).catch((err) => {
+                done(err);
+            });
+        }
+    ], (err, res) => {
+        if (res) {
+            res.send({message: res});
+        } else {
+            res.status(400).send({message: err});
+        }
+    });
+});
+
+router.get('/reset/:id/:token', (req, res) => {
+    const id = req.params.id;
+    const token = req.params.token;
+    User.findById(id).then((user) => {
+        if (!user) {
+            return res.send({message: 'incorrect id'});
+        }
+        var secret = user.password + '-' + user.createdAt;
+        var decoded;
+        try {
+            var decoded = jwt.verify(token, secret);
+        } catch(e) {
+            return res.status(400).send(e);
+        }
+        res.render('reset-password.hbs', {
+            id: decoded._id,
+            token: token
+        });
+    }).catch((e) => {
+        res.status(400).send(e);
+    });
+});
+
+
+router.post('/reset', (req, res) => {
+    var body = _.pick(req.body, ['id', 'token', 'password']);
+    async.waterfall([
+        function (done) {
+            User.findById(body.id).then((user) => {
+                if (!user) {
+                    done(err);
+                };
+                var pass = body.password;
+                bcrypt.compare(pass, user.password, (err, res) => {
+                    if (res) {
+                        done(err);
+                    } else {
+                        done(null, user, pass);
+                    };
+                });
+            })
+        },
+        function (user, pass, done) {
+            bcrypt.genSalt(10, (err, salt) => {
+                bcrypt.hash(pass, salt, (err, hash) => {
+                    if (hash) {
+                        pass = hash;
+                        done(null, user, pass);
+                    } else {
+                        done(err);
+                    }
+                });
+            });
+        },
+        function(user, pass, done) {
+            User.findOneAndUpdate({_id: user._id}, {
+                $push: {
+                    password: pass
+                }
+            }).then(() => {
+                done(null);
+            }).catch((e) => {
+                done(err);
+            });
+        }
+    ], function (err, res) {
+        if (res) {
+            res.send({message: 'Your password has been successfully changed.'});
+        } else {
+            res.status(400).send({message: err});
+        }
+    })
+})
 
 module.exports = router;

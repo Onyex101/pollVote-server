@@ -90,17 +90,17 @@ var userSchema = new mongoose.Schema({
  * overrides a method to limit the amount of info
  * from db that is being returned to the user
  */
-userSchema.methods.toJSON = function () {
-    var user = this;
-    var userObject = user.toObject();
-    return _.pick(userObject, ['_id', 'user_name', 'email', 'pending', 'authorised']);
-};
+// userSchema.methods.toJSON = function () {
+//     var user = this;
+//     var userObject = user.toObject();
+//     return _.pick(userObject, ['_id', 'user_name', 'email', 'pending', 'authorised']);
+// };
 
 // Instance methods
 userSchema.methods.generateAuthToken = function () {
     var user = this;
     var access = 'auth';
-    var token = jwt.sign({ _id: user._id.toHexString(), access }, secret).toString();
+    var token = jwt.sign({ _id: user._id.toHexString(), access }, secret, {expiresIn: '1h'}).toString();
     user.tokens.push({ access, token });
     return user.save().then(() => {
         return token;

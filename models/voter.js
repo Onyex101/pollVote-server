@@ -102,7 +102,7 @@ voterSchema.statics.findByCredentials = function (userName, pass) {
                 if (res) {
                     resolve(data);
                 } else {
-                    reject();
+                    reject(err);
                 };
             });
         });

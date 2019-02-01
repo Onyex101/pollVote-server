@@ -7,7 +7,6 @@ const { voteAuth } = require('./../../middleware/voter-auth');
 const { Voter } = require('./../../models/voter');
 const { Poll } = require('./../../models/poll');
 const { User } = require('./../../models/user');
-const pusher = require('./../../server/pusher');
 
 var router = express.Router();
 router.use(bodyParser.urlencoded({ extended: true }));
@@ -61,7 +60,7 @@ router.post('/login', (req, res) => {
             })
         });
     }).catch((err) => {
-        res.status(400).send({ err });
+        res.status(400).send({err});
     });
 });
 
