@@ -130,7 +130,7 @@ router.post('/poll', voteAuth, (req, res) => {
                         code: body.code,
                         'authorised.full_name': req.voter.full_name
                     }, { $set: { 'authorised.$.hasVoted': true } }).then((r) => {
-                        res.send({ message: 'Voted!' });
+                        res.send({message: 'Voted!' });
                     }).catch((err) => {
                         res.status(400).send({ err });
                     });
@@ -142,12 +142,25 @@ router.post('/poll', voteAuth, (req, res) => {
 });
 
 router.post('/results', voteAuth, (req, res) => {
-    var body = _.pick(req.body, ['_id', 'code']);
+    var body = _.pick(req.body, ['code']);
     Poll.findOne({
-        _id: body._id,
         code: body.code
     }).then((poll) => {
-        res.send({ result: poll.options });
+        var data = poll.options;
+        var a = 0;
+        data.forEach((element) => {
+            a += element.votes
+        });
+        var listObjects = [];
+        data.forEach((element) => {
+            var singleObj = {};
+            singleObj['value'] = Math.round(((element.votes)/a)*100);
+            singleObj['votes'] = element.votes;
+            singleObj['field'] = element.field;
+            singleObj['_id'] = element._id;
+            listObjects.push(singleObj);
+        });
+        res.send({title: poll.question, options: listObjects});
     }).catch((e) => {
         res.status(400).send({ e });
     });

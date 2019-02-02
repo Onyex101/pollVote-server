@@ -179,12 +179,26 @@ router.get('/authorised', authenticate, (req, res) => {
  */
 router.get('/results', authenticate, (req, res) => {
     Poll.findOne({
-        _userID: res.user._id,
-        code: res.user.code
+        _userID: req.user._id,
+        code: req.user.code
     }).then((poll) => {
-        res.send({ result: poll.options });
+        var data = poll.options;
+        var a = 0;
+        data.forEach((element) => {
+            a += element.votes
+        });
+        var listObjects = [];
+        data.forEach((element) => {
+            var singleObj = {};
+            singleObj['value'] = Math.round(((element.votes)/a)*100);
+            singleObj['votes'] = element.votes;
+            singleObj['field'] = element.field;
+            singleObj['_id'] = element._id;
+            listObjects.push(singleObj);
+        });
+        res.send(listObjects);
     }).catch((e) => {
-        res.status(400).send({ e });
+        res.status(400).send(e);
     });
 })
 
@@ -205,7 +219,7 @@ router.delete('/logout', authenticate, (req, res) => {
 /**
  * reset password
  */
-router.post('/reset-password', authenticate, (req, res) => {
+router.post('/forgot-password', authenticate, (req, res) => {
     const body = _.pick(req.body, ['email']);
     async.waterfall([
         function (done) {
