@@ -5,6 +5,7 @@ const { ObjectID } = require('mongodb');
 var jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const sgMail = require('@sendgrid/mail');
+const async = require('async');
 
 var { User } = require('./../../models/user');
 var { authenticate } = require('./../../middleware/authentication');
@@ -221,27 +222,17 @@ router.delete('/logout', authenticate, (req, res) => {
  */
 router.post('/forgot-password', authenticate, (req, res) => {
     const body = _.pick(req.body, ['email']);
-    async.waterfall([
-        function (done) {
-            User.findOne({ email: body.email }).then((user) => {
-                if (!user) {
-                    done('No account with that email address exists');
-                }
-                done(null, user);
-            }).catch((e) => {
-                done(e);
-            });
-        },
-        function (user, done) {
+    User.findOne({ email: body.email }).then((user) => {
+        if (!user) {
+            res.send({message: 'No account with that email address exists'});
+        } else {
             var payload = {
                 _id: user._id,
                 email: user.email
             };
             var secret = user.password + '-' + user.createdAt;
             var token = jwt.sign(payload, secret);
-            done(null, user, token);
-        },
-        function (user, token, done) {
+            console.log('user token', token);
             sgMail.setApiKey(process.env.SENDGRID_API_KEY);
             const msg = {
                 to: user.email,
@@ -253,17 +244,14 @@ router.post('/forgot-password', authenticate, (req, res) => {
                     'If you did not request this, please ignore this email and your password will remain unchanged.\n'
               };
             sgMail.send(msg).then((data) => {
-                done(null, data);
+                console.log('success');
+                res.send({message: 'please check your mail'});
             }).catch((err) => {
-                done(err);
+                res.status(400).send(err);
             });
         }
-    ], (err, res) => {
-        if (res) {
-            res.send({message: res});
-        } else {
-            res.status(400).send({message: err});
-        }
+    }).catch((e) => {
+        res.status(400).send(e);
     });
 });
 
