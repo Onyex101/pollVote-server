@@ -2,6 +2,7 @@ var express = require('express');
 var bodyParser = require('body-parser');
 var _ = require('lodash');
 const { ObjectID } = require('mongodb');
+const pusher = require('./../../server/pusher');
 
 const { voteAuth } = require('./../../middleware/voter-auth');
 const { Voter } = require('./../../models/voter');
@@ -160,7 +161,9 @@ router.post('/results', voteAuth, (req, res) => {
             singleObj['_id'] = element._id;
             listObjects.push(singleObj);
         });
-        res.send({title: poll.question, options: listObjects});
+        var payload = {title: poll.question, options: listObjects};
+        pusher.trigger(poll.code, 'new-entry', payload);
+        res.send(payload);
     }).catch((e) => {
         res.status(400).send({ e });
     });

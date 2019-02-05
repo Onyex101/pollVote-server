@@ -5,7 +5,6 @@ const { ObjectID } = require('mongodb');
 var jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const sgMail = require('@sendgrid/mail');
-const async = require('async');
 
 var { User } = require('./../../models/user');
 var { authenticate } = require('./../../middleware/authentication');
@@ -47,7 +46,9 @@ router.post('/login', (req, res) => {
     });
 });
 
-
+/**
+ * Admin Dashboard
+ */
 router.get('/home', authenticate, (req, res) => {
     var user = req.user;
     Poll.find({ _userID: user._id }).then((val) => {
@@ -191,7 +192,7 @@ router.get('/results', authenticate, (req, res) => {
         var listObjects = [];
         data.forEach((element) => {
             var singleObj = {};
-            singleObj['value'] = Math.round(((element.votes)/a)*100);
+            singleObj['value'] = Math.round(((element.votes) / a) * 100);
             singleObj['votes'] = element.votes;
             singleObj['field'] = element.field;
             singleObj['_id'] = element._id;
@@ -224,7 +225,7 @@ router.post('/forgot-password', authenticate, (req, res) => {
     const body = _.pick(req.body, ['email']);
     User.findOne({ email: body.email }).then((user) => {
         if (!user) {
-            res.send({message: 'No account with that email address exists'});
+            res.send({ message: 'No account with that email address exists' });
         } else {
             var payload = {
                 _id: user._id,
@@ -236,16 +237,16 @@ router.post('/forgot-password', authenticate, (req, res) => {
             sgMail.setApiKey(process.env.SENDGRID_API_KEY);
             const msg = {
                 to: user.email,
-                from: 'pollVote-team@gmail.com',
+                from: 'pollVote-team@poll-vote.com',
                 subject: 'Password Reset',
                 text: 'You are receiving this because you (or someone else) have requested the reset of the password for your account.\n\n' +
                     'Please click on the following link, or paste this into your browser to complete the process:\n\n' +
                     process.env.URI + '/admin/reset/' + user._id + '/' + token + '\n\n' +
                     'If you did not request this, please ignore this email and your password will remain unchanged.\n'
-              };
+            };
             sgMail.send(msg).then((data) => {
                 console.log('success');
-                res.send({message: 'please check your mail'});
+                res.send({ message: 'please check your mail' });
             }).catch((err) => {
                 res.status(400).send(err);
             });
@@ -260,13 +261,13 @@ router.get('/reset/:id/:token', (req, res) => {
     const token = req.params.token;
     User.findById(id).then((user) => {
         if (!user) {
-            return res.send({message: 'incorrect id'});
+            return res.send({ message: 'incorrect id' });
         }
         var secret = user.password + '-' + user.createdAt;
         var decoded;
         try {
             var decoded = jwt.verify(token, secret);
-        } catch(e) {
+        } catch (e) {
             return res.status(400).send(e);
         }
         res.render('reset-password.hbs', {
@@ -281,52 +282,35 @@ router.get('/reset/:id/:token', (req, res) => {
 
 router.post('/reset', (req, res) => {
     var body = _.pick(req.body, ['id', 'token', 'password']);
-    async.waterfall([
-        function (done) {
-            User.findById(body.id).then((user) => {
-                if (!user) {
-                    done(err);
-                };
-                var pass = body.password;
-                bcrypt.compare(pass, user.password, (err, res) => {
-                    if (res) {
-                        done(err);
-                    } else {
-                        done(null, user, pass);
-                    };
-                });
-            })
-        },
-        function (user, pass, done) {
-            bcrypt.genSalt(10, (err, salt) => {
-                bcrypt.hash(pass, salt, (err, hash) => {
-                    if (hash) {
-                        pass = hash;
-                        done(null, user, pass);
-                    } else {
-                        done(err);
-                    }
-                });
-            });
-        },
-        function(user, pass, done) {
-            User.findOneAndUpdate({_id: user._id}, {
-                $push: {
-                    password: pass
-                }
-            }).then(() => {
-                done(null);
-            }).catch((e) => {
-                done(err);
-            });
-        }
-    ], function (err, res) {
-        if (res) {
-            res.send({message: 'Your password has been successfully changed.'});
+    User.findById(body.id).then((user) => {
+        if (!user) {
+            res.send({ message: '' });
         } else {
-            res.status(400).send({message: err});
-        }
-    })
-})
+            var pass = body.password;
+            bcrypt.compare(pass, user.password, (error, response) => {
+                if (response) {
+                    res.send({message: 'please select a new password'})
+                } else {
+                    bcrypt.genSalt(10, (err, salt) => {
+                        bcrypt.hash(pass, salt, (err, hash) => {
+                            pass = hash;
+                            User.findOneAndUpdate({ _id: user._id }, {
+                                $push: {
+                                    password: pass
+                                }
+                            }).then(() => {
+                                res.send({message: 'password updated'});
+                            }).catch((e) => {
+                                res.status(400).send({e});
+                            });
+                        });
+                    });
+                };
+            });
+        };
+    }).catch((e) => {
+        res.status(400).send(e);
+    });
+});
 
 module.exports = router;

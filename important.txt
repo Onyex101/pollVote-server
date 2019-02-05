@@ -6,5 +6,8 @@ https://www.sitepoint.com/user-authentication-mean-stack/
 
 https://www.smashingmagazine.com/2017/11/safe-password-resets-with-json-web-tokens/
 
-
 https://www.c-sharpcorner.com/blogs/forgot-password-email-notification-using-node-js
+
+
+
+https://medium.com/@sr6033/independent-notification-service-using-ionic-node-fcm-5cdde219480a
