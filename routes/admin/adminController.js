@@ -221,7 +221,7 @@ router.delete('/logout', authenticate, (req, res) => {
 /**
  * reset password
  */
-router.post('/forgot-password', authenticate, (req, res) => {
+router.post('/forgot-password', (req, res) => {
     const body = _.pick(req.body, ['email']);
     User.findOne({ email: body.email }).then((user) => {
         if (!user) {

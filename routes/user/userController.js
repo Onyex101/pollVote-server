@@ -45,14 +45,29 @@ router.post('/login', (req, res) => {
                 }
             }).then((user) => {
                 let test = _.isEmpty(user);
-                if ((test === true) || !user) {
-                    User.update({ code: body.code }, {
-                        $push: {
-                            pending: { full_name: voter.full_name, email: voter.email }
+                if ((test === true)) {
+                    User.findOne({
+                        code: body.code,
+                        pending: {
+                            $elemMatch: {
+                                full_name: voter.full_name,
+                                email: voter.email
+                            }
                         }
-                    }).then(() => {
-                        res.header('x-auth', token).send(voter);
-                    });
+                    }).then((pend) => {
+                        let test2 = _.isEmpty(pend);
+                        if (test2 === true) {
+                            User.update({ code: body.code }, {
+                                $push: {
+                                    pending: { full_name: voter.full_name, email: voter.email }
+                                }
+                            }).then(() => {
+                                res.header('x-auth', token).send(voter);
+                            });
+                        } else {
+                            res.header('x-auth', token).send(voter);
+                        }
+                    }).catch((e) => res.status(400).send);
                 } else {
                     res.header('x-auth', token).send(voter);
                 }

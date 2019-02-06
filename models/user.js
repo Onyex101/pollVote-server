@@ -100,7 +100,12 @@ var userSchema = new mongoose.Schema({
 userSchema.methods.generateAuthToken = function () {
     var user = this;
     var access = 'auth';
-    var token = jwt.sign({ _id: user._id.toHexString(), access }, secret, {expiresIn: '1h'}).toString();
+    var load = {
+        _id: user._id.toHexString(),
+        access: access,
+        exp: Math.floor(Date.now() / 1000) + (60 * 60)
+    };
+    var token = jwt.sign(load, secret).toString();
     user.tokens.push({ access, token });
     return user.save().then(() => {
         return token;

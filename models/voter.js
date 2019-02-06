@@ -57,7 +57,12 @@ voterSchema.methods.toJSON = function () {
 voterSchema.methods.generateAuthToken = function () {
     var voter = this;
     var access = 'auth';
-    var token = jwt.sign({ _id: voter._id.toHexString(), access }, secret).toString();
+    var load = {
+        _id: voter._id.toHexString(),
+        access: access,
+        exp: Math.floor(Date.now() / 1000) + (60 * 60)
+    };
+    var token = jwt.sign(load, secret).toString();
     voter.tokens.push({ access, token });
     return voter.save().then(() => {
         return token;
