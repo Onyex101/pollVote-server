@@ -301,7 +301,7 @@ router.post('/reset', (req, res) => {
                             }).then(() => {
                                 res.send({message: 'password updated'});
                             }).catch((e) => {
-                                res.status(400).send({e});
+                                res.status(400).send({e, pass});
                             });
                         });
                     });
