@@ -295,7 +295,7 @@ router.post('/reset', (req, res) => {
                         bcrypt.hash(pass, salt, (err, hash) => {
                             pass = hash;
                             User.findOneAndUpdate({ _id: user._id }, {
-                                $push: {
+                                $set: {
                                     password: pass
                                 }
                             }).then(() => {
