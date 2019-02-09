@@ -74,6 +74,10 @@ var userSchema = new mongoose.Schema({
             default: false
         }
     }],
+    push_token: {
+        type: String,
+        default: null
+    },
     tokens: [{
         access: {
             type: String,
@@ -172,16 +176,6 @@ userSchema.statics.authorise = function (body) {
         }
     );
 };
-
-userSchema.statics.findByCode = function (body) {
-    var User = this;
-    return User.findOne({code: body.code}).then((user) => {
-        if (!user) {
-            return Promise.reject();
-        }
-        Voter.find(firstname)
-    })
-}
 
 
 userSchema.pre('save', function (next) {

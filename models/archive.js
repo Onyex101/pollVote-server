@@ -1,7 +1,6 @@
 var mongoose = require('mongoose');
-var _ = require('lodash');
 
-var pollSchema = new mongoose.Schema({
+var archiveSchema = new mongoose.Schema({
     _userID: {
         type: mongoose.Schema.Types.ObjectId,
         required: true
@@ -29,14 +28,8 @@ var pollSchema = new mongoose.Schema({
             }
         }
     ]
-}, { timestamps: true });
+}, {timestamps: true});
 
-pollSchema.methods.toJSON = function () {
-    var poll = this;
-    var pollObject = poll.toObject();
-    return _.pick(pollObject, ['_id', 'question', 'options', 'duration']);
-};
+var Archive = mongoose.model('archives', archiveSchema);
 
-var Poll = mongoose.model('poll', pollSchema);
-
-module.exports = { Poll };
+module.exports = { Archive };

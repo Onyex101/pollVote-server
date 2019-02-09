@@ -5,6 +5,8 @@ const { ObjectID } = require('mongodb');
 var jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const sgMail = require('@sendgrid/mail');
+var moment = require('moment');
+const timer = require('./../../misc/countdown');
 
 var { User } = require('./../../models/user');
 var { authenticate } = require('./../../middleware/authentication');
@@ -19,7 +21,7 @@ router.use(bodyParser.json());
  * Creates a new Admin
  */
 router.post('/signup', (req, res) => {
-    var body = _.pick(req.body, ['full_name', 'code', 'user_name', 'email', 'password']);
+    var body = _.pick(req.body, ['full_name', 'code', 'user_name', 'email', 'password', 'push_token']);
     var user = new User(body);
     user.save().then((user) => {
         return user.generateAuthToken();
@@ -68,8 +70,11 @@ router.post('/new-poll', authenticate, (req, res) => {
         question: req.body.question,
         options: req.body.options
     };
+    var date = moment().format();
+    body['duration'] = date;
     var newPoll = new Poll(body);
     newPoll.save().then((poll) => {
+        timer(date, poll._id);
         res.send({ message: message.admin.poll });
     }).catch((err) => {
         res.status(400).send(err);
@@ -198,7 +203,9 @@ router.get('/results', authenticate, (req, res) => {
             singleObj['_id'] = element._id;
             listObjects.push(singleObj);
         });
-        res.send(listObjects);
+        var payload = { title: poll.question, options: listObjects, duration: poll.duration };
+        pusher.trigger('vote-channel', 'new-entry', payload);
+        res.send(payload);
     }).catch((e) => {
         res.status(400).send(e);
     });
@@ -289,7 +296,7 @@ router.post('/reset', (req, res) => {
             var pass = body.password;
             bcrypt.compare(pass, user.password, (error, response) => {
                 if (response) {
-                    res.send({message: 'please select a new password'})
+                    res.send({ message: 'please select a new password' })
                 } else {
                     bcrypt.genSalt(10, (err, salt) => {
                         bcrypt.hash(pass, salt, (err, hash) => {
@@ -299,9 +306,9 @@ router.post('/reset', (req, res) => {
                                     password: pass
                                 }
                             }).then(() => {
-                                res.send({message: 'password updated'});
+                                res.send({ message: 'password updated' });
                             }).catch((e) => {
-                                res.status(400).send({e, pass});
+                                res.status(400).send({ e, pass });
                             });
                         });
                     });

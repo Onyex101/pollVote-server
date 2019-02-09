@@ -17,7 +17,7 @@ router.use(bodyParser.json());
  * Add a user
  */
 router.post('/signup', (req, res) => {
-    var body = _.pick(req.body, ['full_name', 'user_name', 'email', 'password']);
+    var body = _.pick(req.body, ['full_name', 'user_name', 'email', 'password', 'push_token']);
     var voter = new Voter(body);
     voter.save().then((voter) => {
         return voter.generateAuthToken();
@@ -76,7 +76,7 @@ router.post('/login', (req, res) => {
             })
         });
     }).catch((err) => {
-        res.status(400).send({err});
+        res.status(400).send({ err });
     });
 });
 
@@ -110,7 +110,7 @@ router.post('/get-code', voteAuth, (req, res) => {
             });
         }
     }).catch((e) => {
-        res.status(400).send({e});
+        res.status(400).send({ e });
     });
 });
 
@@ -146,7 +146,7 @@ router.post('/poll', voteAuth, (req, res) => {
                         code: body.code,
                         'authorised.full_name': req.voter.full_name
                     }, { $set: { 'authorised.$.hasVoted': true } }).then((r) => {
-                        res.send({message: 'Voted!' });
+                        res.send({ message: 'Voted!' });
                     }).catch((err) => {
                         res.status(400).send({ err });
                     });
@@ -170,14 +170,14 @@ router.post('/results', voteAuth, (req, res) => {
         var listObjects = [];
         data.forEach((element) => {
             var singleObj = {};
-            singleObj['value'] = Math.round(((element.votes)/a)*100);
+            singleObj['value'] = Math.round(((element.votes) / a) * 100);
             singleObj['votes'] = element.votes;
             singleObj['field'] = element.field;
             singleObj['_id'] = element._id;
             listObjects.push(singleObj);
         });
-        var payload = {title: poll.question, options: listObjects};
-        pusher.trigger(poll.code, 'new-entry', payload);
+        var payload = { title: poll.question, options: listObjects, duration: poll.duration };
+        pusher.trigger('vote-channel', 'new-entry', payload);
         res.send(payload);
     }).catch((e) => {
         res.status(400).send({ e });

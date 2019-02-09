@@ -31,6 +31,10 @@ var voterSchema = new mongoose.Schema({
         required: true,
         minlength: 6
     },
+    push_token: {
+        type: String,
+        default: null
+    },
     tokens: [{
         access: {
             type: String,

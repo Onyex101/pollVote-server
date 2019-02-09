@@ -8,6 +8,4 @@ https://www.smashingmagazine.com/2017/11/safe-password-resets-with-json-web-toke
 
 https://www.c-sharpcorner.com/blogs/forgot-password-email-notification-using-node-js
 
-
-
-https://medium.com/@sr6033/independent-notification-service-using-ionic-node-fcm-5cdde219480a
+https://www.techotopia.com/index.php/Sending_Firebase_Cloud_Messages_from_a_Node.js_Server
