@@ -3,7 +3,7 @@ var {mongoose} = require('./../database/mongoose');
 const port = process.env.PORT || 3000;
 const cors = require('cors');
 const hbs = require('hbs');
-const pusher = require('./pusher');
+const pusher = require('./../misc/pusher');
 
 const adminController = require('./../routes/admin/adminController');
 const userController = require('./../routes/user/userController');

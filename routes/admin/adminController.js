@@ -5,13 +5,11 @@ const { ObjectID } = require('mongodb');
 var jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const sgMail = require('@sendgrid/mail');
-var moment = require('moment');
-const timer = require('./../../misc/countdown');
 
 var { User } = require('./../../models/user');
+var { Timer } = require('./../../misc/countdown');
 var { authenticate } = require('./../../middleware/authentication');
 var { Poll } = require('./../../models/poll');
-const message = require('./../../misc/message');
 
 var router = express.Router();
 router.use(bodyParser.urlencoded({ extended: true }));
@@ -26,7 +24,7 @@ router.post('/signup', (req, res) => {
     user.save().then((user) => {
         return user.generateAuthToken();
     }).then((token) => {
-        res.header('x-auth', token).send({ message: message.admin.signUp });
+        res.header('x-auth', token).send({ message: 'signup successfull' });
     }).catch((err) => {
         res.status(400).send(err);
     });
@@ -41,7 +39,7 @@ router.post('/login', (req, res) => {
     var body = _.pick(req.body, ['user_name', 'password']);
     User.findByCredentials(body.user_name, body.password).then((user) => {
         user.generateAuthToken().then((token) => {
-            res.header('x-auth', token).send({ message: message.admin.login });
+            res.header('x-auth', token).send({ message: 'login successfull' });
         });
     }).catch((err) => {
         res.status(400).send({ message: 'please check username or password' });
@@ -64,18 +62,32 @@ router.get('/home', authenticate, (req, res) => {
  * 
  */
 router.post('/new-poll', authenticate, (req, res) => {
+    var date = req.body.duration;
+    var newDate = new Date(date).getTime();
+    var now = new Date().getTime();
+    console.log('now date', now);
+    console.log('new date property', newDate);
+    var archives = {
+        startDate: now,
+        endDate: newDate
+    };
+    if (newDate <= now) {
+        res.send({ message: 'incorrect time' });
+    };
+    // convert time in milliseconds to seconds
+    var a = newDate - now;
+    var timeLeft = Math.floor((a / 1000));
     var body = {
         _userID: req.user._id,
         code: req.user.code,
         question: req.body.question,
-        options: req.body.options
+        options: req.body.options,
+        duration: timeLeft
     };
-    var date = moment().format();
-    body['duration'] = date;
     var newPoll = new Poll(body);
     newPoll.save().then((poll) => {
-        timer(date, poll._id);
-        res.send({ message: message.admin.poll });
+        Timer(timeLeft, poll._id, archives);
+        res.send({ message: 'new poll created' });
     }).catch((err) => {
         res.status(400).send(err);
     });
@@ -204,7 +216,7 @@ router.get('/results', authenticate, (req, res) => {
             listObjects.push(singleObj);
         });
         var payload = { title: poll.question, options: listObjects, duration: poll.duration };
-        pusher.trigger('vote-channel', 'new-entry', payload);
+        //pusher.trigger('vote-channel', 'new-entry', payload);
         res.send(payload);
     }).catch((e) => {
         res.status(400).send(e);
@@ -279,7 +291,8 @@ router.get('/reset/:id/:token', (req, res) => {
         }
         res.render('reset-password.hbs', {
             id: decoded._id,
-            token: token
+            token: token,
+            user: 'admin'
         });
     }).catch((e) => {
         res.status(400).send(e);
@@ -291,7 +304,7 @@ router.post('/reset', (req, res) => {
     var body = _.pick(req.body, ['id', 'token', 'password']);
     User.findById(body.id).then((user) => {
         if (!user) {
-            res.send({ message: '' });
+            res.send({ message: 'invalid user' });
         } else {
             var pass = body.password;
             bcrypt.compare(pass, user.password, (error, response) => {

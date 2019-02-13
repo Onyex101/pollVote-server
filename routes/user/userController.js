@@ -2,7 +2,8 @@ var express = require('express');
 var bodyParser = require('body-parser');
 var _ = require('lodash');
 const { ObjectID } = require('mongodb');
-const pusher = require('./../../server/pusher');
+const pusher = require('./../../misc/pusher');
+const sgMail = require('@sendgrid/mail');
 
 const { voteAuth } = require('./../../middleware/voter-auth');
 const { Voter } = require('./../../models/voter');
@@ -194,6 +195,102 @@ router.delete('/logout', voteAuth, (req, res) => {
         });
     }).catch((err) => {
         res.status(400).send({ err });
+    });
+});
+
+/**
+ * reset password
+ */
+router.post('/forgot-password', (req, res) => {
+    const body = _.pick(req.body, ['email']);
+    Voter.findOne({ email: body.email }).then((voter) => {
+        if (!voter) {
+            res.send({ message: 'No account with that email address exists' });
+        } else {
+            var payload = {
+                _id: voter._id,
+                email: voter.email
+            };
+            var secret = voter.password + '-' + voter.createdAt;
+            var token = jwt.sign(payload, secret);
+            console.log('voter token', token);
+            sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+            const msg = {
+                to: voter.email,
+                from: 'pollVote-team@poll-vote.com',
+                subject: 'Password Reset',
+                text: 'You are receiving this because you (or someone else) have requested the reset of the password for your account.\n\n' +
+                    'Please click on the following link, or paste this into your browser to complete the process:\n\n' +
+                    process.env.URI + '/admin/reset/' + voter._id + '/' + token + '\n\n' +
+                    'If you did not request this, please ignore this email and your password will remain unchanged.\n'
+            };
+            sgMail.send(msg).then(() => {
+                console.log('success');
+                res.send({ message: 'please check your mail' });
+            }).catch((err) => {
+                res.status(400).send(err);
+            });
+        }
+    }).catch((e) => {
+        res.status(400).send(e);
+    });
+});
+
+router.get('/reset/:id/:token', (req, res) => {
+    const id = req.params.id;
+    const token = req.params.token;
+    Voter.findById(id).then((voter) => {
+        if (!voter) {
+            return res.send({ message: 'incorrect id' });
+        }
+        var secret = voter.password + '-' + voter.createdAt;
+        var decoded;
+        try {
+            var decoded = jwt.verify(token, secret);
+        } catch (e) {
+            return res.status(400).send(e);
+        }
+        res.render('reset-password.hbs', {
+            id: decoded._id,
+            token: token,
+            user: 'user'
+        });
+    }).catch((e) => {
+        res.status(400).send(e);
+    });
+});
+
+
+router.post('/reset', (req, res) => {
+    var body = _.pick(req.body, ['id', 'token', 'password']);
+    Voter.findById(body.id).then((voter) => {
+        if (!voter) {
+            res.send({ message: 'voter does not exist' });
+        } else {
+            var pass = body.password;
+            bcrypt.compare(pass, voter.password, (error, response) => {
+                if (response) {
+                    res.send({ message: 'please select a new password' })
+                } else {
+                    bcrypt.genSalt(10, (err, salt) => {
+                        bcrypt.hash(pass, salt, (err, hash) => {
+                            pass = hash;
+                            Voter.findOneAndUpdate({ _id: voter._id }, {
+                                $set: {
+                                    password: pass
+                                }
+                            }).then(() => {
+                                res.send({ message: 'password updated' });
+                            }).catch((e) => {
+                                res.status(400).send({ e, pass });
+                            });
+                        });
+                    });
+                };
+            });
+        };
+    }).catch((e) => {
+        res.status(400).send(e);
     });
 });
 

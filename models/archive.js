@@ -13,8 +13,11 @@ var archiveSchema = new mongoose.Schema({
         type: String,
         required: true
     },
-    duration: {
-        type: Number
+    startDate: {
+        type: Date
+    },
+    endDate: {
+        type: Date
     },
     options: [
         {
@@ -29,6 +32,15 @@ var archiveSchema = new mongoose.Schema({
         }
     ]
 }, {timestamps: true});
+
+archiveSchema.pre('save', function (next) {
+    var archive = this;
+    date1 = new Date(archive.startDate).toString();
+    archive.startDate = date1;
+    date2 = new Date(archive.endDate).toString();
+    archive.endDate = date2;
+    next();
+});
 
 var Archive = mongoose.model('archives', archiveSchema);
 
