@@ -9,7 +9,7 @@ const adminController = require('./../routes/admin/adminController');
 const userController = require('./../routes/user/userController');
 
 app.use(cors({
-    origin: ['http://localhost:8100', 'http://localhost:8000'],
+    origin: ['http://localhost:8100', 'http://localhost:8000', 'http://localhost'],
     credentials: true,
     exposedHeaders: ['x-auth'],
 }));
