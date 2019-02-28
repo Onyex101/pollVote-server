@@ -10,6 +10,9 @@ var { User } = require('./../../models/user');
 var { Timer } = require('./../../misc/countdown');
 var { authenticate } = require('./../../middleware/authentication');
 var { Poll } = require('./../../models/poll');
+var { Archive } = require('./../../models/archive');
+var { PollList } = require('./../../models/pollList');
+var { voteList } = require('./../../misc/voteList');
 
 var router = express.Router();
 router.use(bodyParser.urlencoded({ extended: true }));
@@ -64,6 +67,7 @@ router.get('/home', authenticate, (req, res) => {
 router.post('/new-poll', authenticate, (req, res) => {
     var date = req.body.duration;
     var newDate = new Date(date).getTime();
+    newDate = newDate - (3600 * 1000);
     var now = new Date().getTime();
     console.log('now date', now);
     console.log('new date property', newDate);
@@ -87,6 +91,17 @@ router.post('/new-poll', authenticate, (req, res) => {
     var newPoll = new Poll(body);
     newPoll.save().then((poll) => {
         Timer(timeLeft, poll._id, archives);
+        var poll_list = {
+            _pollID: poll._id
+        };
+        var newList = new PollList(poll_list);
+        newList.save().then((list) => {
+            console.log('success: ', list);
+            var userDet = req.user;
+            voteList(userDet, poll._id);
+        }).catch((e1) => {
+            console.log(e1);
+        });
         res.send({ message: 'new poll created' });
     }).catch((err) => {
         res.status(400).send(err);
@@ -149,37 +164,31 @@ router.post('/pend-auth', authenticate, (req, res) => {
     var id = req.user._id;
     for (var i = 0; i < body.pending.length; i++) {
         var pend = body.pending[i];
-        User.update({
+        User.updateOne({
             _id: id,
             pending: {
                 $elemMatch: {
                     full_name: pend.full_name,
+                    user_name: pend.user_name,
                     email: pend.email
                 }
             }
         }, {
                 $pull: {
                     pending: pend
+                },
+                $push: {
+                    authorised: pend
                 }
-            }).then((user) => {
-                if (!user) {
-                    res.status(400).send({ error });
-                }
-                User.update({ _id: id }, {
-                    $push: {
-                        authorised: pend
-                    }
-                }).then(() => {
-                    res.send({ message: 'voter was succesfully authorized' });
-                }).catch((e) => {
-                    res.status(400).send({ e });
-                })
+            }).then(() => {
+
             }).catch((err) => {
-                res.send(err);
+                res.status(400).send(err);
             });
     }
-
-})
+    // voteList(req.user._id);
+    res.send({ message: 'voter was succesfully authorized' });
+});
 
 /**
  * view authorised users
@@ -215,7 +224,13 @@ router.get('/results', authenticate, (req, res) => {
             singleObj['_id'] = element._id;
             listObjects.push(singleObj);
         });
-        var payload = { title: poll.question, options: listObjects, duration: poll.duration };
+        console.log(listObjects);
+        var payload = { 
+            title: poll.question,
+            id: poll._id,
+            options: listObjects,
+            duration: poll.duration
+        };
         //pusher.trigger('vote-channel', 'new-entry', payload);
         res.send(payload);
     }).catch((e) => {
@@ -331,6 +346,38 @@ router.post('/reset', (req, res) => {
     }).catch((e) => {
         res.status(400).send(e);
     });
+});
+
+/**
+ * Get Archived polls
+ */
+router.get('/archive', authenticate, (req, res) => {
+    Archive.find({
+        code: req.user.code
+    }).then((archive) => {
+        res.send({archive});
+    }).catch((err) => {
+        res.status(400).send(err);
+    });
+});
+
+/**
+ * Display poll lists
+ * (has voted and not voted)
+ */
+router.post('/lists', authenticate, (req, res) => {
+    var body = _.pick(req.body, ['id']);
+    PollList.findOne({
+        _pollID: body.id
+    }).then((list) => {
+        if (!list) {
+            res.status(400).send({message: 'no list found'});
+        };
+        var payload = _.pick(list, ['notVoted', 'hasVoted']);
+        res.send(payload);
+    }).catch((err) => {
+        res.status(400).send({err});
+    })
 });
 
 module.exports = router;

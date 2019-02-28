@@ -30,8 +30,34 @@ var archiveSchema = new mongoose.Schema({
                 default: 0
             }
         }
+    ],
+    notVoted: [
+        {
+            full_name: {
+                type: String
+            },
+            user_name: {
+                type: String
+            }
+        }
+    ],
+    hasVoted: [
+        {
+            full_name: {
+                type: String
+            },
+            user_name: {
+                type: String
+            }
+        }
     ]
 }, {timestamps: true});
+
+// archiveSchema.methods.toJSON = function () {
+//     var archive = this;
+//     var archiveObject = archive.toObject();
+//     return _.pick(archiveObject, ['code', 'question', 'options', 'hasVoted', 'notVoted', 'startDate', 'endDate']);
+// };
 
 archiveSchema.pre('save', function (next) {
     var archive = this;

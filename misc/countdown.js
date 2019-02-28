@@ -1,4 +1,5 @@
 const { Poll } = require('./../models/poll');
+const { PollList } = require('./../models/pollList');
 const { Archive } = require('./../models/archive');
 
 var Timer = (period, pollID, duration) => {
@@ -16,20 +17,23 @@ var Timer = (period, pollID, duration) => {
         period--;
         if (period <= 1) {
             Poll.findByIdAndRemove(pollID).then((poll) => {
-                var body = {
-                    _userID: poll._userID,
-                    code: poll.code,
-                    question: poll.question,
-                    options: poll.options,
-                    startDate: duration.startDate,
-                    endDate: duration.endDate
-                };
-                console.log('archive body', body);
-                var newArchive = new Archive(body);
-                newArchive.save().then(() => {
-                    console.log('archive successfully saved');
-                }).catch((e) => {
-                    console.log('archive error', e);
+                PollList.findOneAndRemove({_pollID: poll._id}).then((list) => {
+                    var body = {
+                        _userID: poll._userID,
+                        code: poll.code,
+                        question: poll.question,
+                        options: poll.options,
+                        notVoted: list.notVoted,
+                        hasVoted: list.hasVoted,
+                        startDate: duration.startDate,
+                        endDate: duration.endDate
+                    };
+                    var newArchive = new Archive(body);
+                    newArchive.save().then((arch) => {
+                        console.log('archive successfully saved', arch);
+                    }).catch((e) => {
+                        console.log('archive error', e);
+                    });
                 });
             });
             clearInterval(x);

@@ -9,6 +9,7 @@ const { voteAuth } = require('./../../middleware/voter-auth');
 const { Voter } = require('./../../models/voter');
 const { Poll } = require('./../../models/poll');
 const { User } = require('./../../models/user');
+const { PollList } = require('./../../models/pollList');
 
 var router = express.Router();
 router.use(bodyParser.urlencoded({ extended: true }));
@@ -41,6 +42,7 @@ router.post('/login', (req, res) => {
                 authorised: {
                     $elemMatch: {
                         full_name: voter.full_name,
+                        user_name: voter.user_name,
                         email: voter.email
                     }
                 }
@@ -52,6 +54,7 @@ router.post('/login', (req, res) => {
                         pending: {
                             $elemMatch: {
                                 full_name: voter.full_name,
+                                user_name: voter.user_name,
                                 email: voter.email
                             }
                         }
@@ -60,7 +63,11 @@ router.post('/login', (req, res) => {
                         if (test2 === true) {
                             User.update({ code: body.code }, {
                                 $push: {
-                                    pending: { full_name: voter.full_name, email: voter.email }
+                                    pending: {
+                                        full_name: voter.full_name,
+                                        user_name: voter.user_name,
+                                        email: voter.email
+                                    }
                                 }
                             }).then(() => {
                                 res.header('x-auth', token).send(voter);
@@ -92,7 +99,7 @@ router.post('/get-code', voteAuth, (req, res) => {
             authorised: {
                 $elemMatch: {
                     full_name: req.voter.full_name,
-                    hasVoted: false
+                    user_name: req.voter.user_name
                 }
             }
         }
@@ -120,41 +127,80 @@ router.post('/get-code', voteAuth, (req, res) => {
  */
 router.post('/poll', voteAuth, (req, res) => {
     var body = _.pick(req.body, ['_id', 'code']);
-    User.find(
-        {
-            code: body.code,
-            authorised: {
-                $elemMatch: {
-                    full_name: req.voter.full_name,
-                    hasVoted: false
-                }
+    User.findOne({
+        code: body.code,
+        authorised: {
+            $elemMatch: {
+                full_name: req.voter.full_name,
+                user_name: req.voter.user_name
             }
         }
-    ).then((user) => {
-        let test = _.isEmpty(user);
-        if (test === true) {
-            res.send({ message: 'Already Voted!' });
+    }).then((u) => {
+        let test2 = _.isEmpty(u);
+        if (test2 === true) {
+            res.send({ message: 'no authorisation' });
         } else {
-            Poll.update({
-                code: body.code,
-                'options._id': body._id
-            }, {
-                    $inc: {
-                        "options.$.votes": 1
+            Poll.findOne({
+                code: body.code
+            }).then((poll) => {
+                PollList.findOne({
+                    _pollID: poll._id,
+                    hasVoted: {
+                        $elemMatch: {
+                            full_name: req.voter.full_name,
+                            user_name: req.voter.user_name
+                        }
                     }
-                }).then((poll) => {
-                    User.update({
-                        code: body.code,
-                        'authorised.full_name': req.voter.full_name
-                    }, { $set: { 'authorised.$.hasVoted': true } }).then((r) => {
-                        res.send({ message: 'Voted!' });
-                    }).catch((err) => {
-                        res.status(400).send({ err });
-                    });
-                }).catch((err) => res.status(400).send({ err }));
+                }).then((pl) => {
+                    let test = _.isEmpty(pl);
+                    if (test === false) {
+                        res.status(400).send({message: 'Already voted'});
+                    } else {
+                        Poll.findOneAndUpdate({
+                            code: body.code,
+                            'options._id': body._id
+                        }, {
+                                $inc: {
+                                    "options.$.votes": 1
+                                }
+                            }).then((p2) => {
+                                PollList.findOneAndUpdate({
+                                    _pollID: poll._id,
+                                    notVoted: {
+                                        $elemMatch: {
+                                            full_name: req.voter.full_name,
+                                            user_name: req.voter.user_name
+                                        }
+                                    }
+                                }, {
+                                        $pull: {
+                                            notVoted: {
+                                                full_name: req.voter.full_name,
+                                                user_name: req.voter.user_name
+                                            }
+                                        },
+                                        $push: {
+                                            hasVoted: {
+                                                full_name: req.voter.full_name,
+                                                user_name: req.voter.user_name,
+                                            }
+                                        }
+                                    }).then(() => {
+                                        res.send({message: 'vote succesfull'})
+                                    }).catch((e3) => {
+                                        res.status(400).send({e3});
+                                    });
+                            }).catch((err) => res.status(400).send({ err }));
+                    }
+                }).catch((e1) => {
+                    res.status(400).send({e1})
+                })
+            }).catch((e) => {
+                res.status(400).send({e});
+            });
         }
-    }).catch((err) => {
-        res.status(400).send({ err });
+    }).catch((error) => {
+        res.status(400).send({error});
     });
 });
 
@@ -178,7 +224,7 @@ router.post('/results', voteAuth, (req, res) => {
             listObjects.push(singleObj);
         });
         var payload = { title: poll.question, options: listObjects, duration: poll.duration };
-        pusher.trigger('vote-channel', 'new-entry', payload);
+        //pusher.trigger('vote-channel', 'new-entry', payload);
         res.send(payload);
     }).catch((e) => {
         res.status(400).send({ e });

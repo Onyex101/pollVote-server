@@ -42,6 +42,9 @@ var userSchema = new mongoose.Schema({
         full_name: {
             type: String
         },
+        user_name: {
+            type: String
+        },
         email: {
             type: String,
             required: true,
@@ -58,6 +61,9 @@ var userSchema = new mongoose.Schema({
         full_name: {
             type: String
         },
+        user_name: {
+            type: String
+        },
         email: {
             type: String,
             required: true,
@@ -68,10 +74,6 @@ var userSchema = new mongoose.Schema({
                 validator: validator.isEmail,
                 massage: '{value} is not a valid email'
             }
-        },
-        hasVoted: {
-            type: Boolean,
-            default: false
         }
     }],
     push_token: {

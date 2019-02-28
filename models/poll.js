@@ -1,4 +1,5 @@
 var mongoose = require('mongoose');
+const validator = require('validator');
 var _ = require('lodash');
 
 var pollSchema = new mongoose.Schema({
@@ -32,11 +33,11 @@ var pollSchema = new mongoose.Schema({
     ]
 }, { timestamps: true });
 
-pollSchema.methods.toJSON = function () {
-    var poll = this;
-    var pollObject = poll.toObject();
-    return _.pick(pollObject, ['_id', 'question', 'options', 'duration']);
-};
+// pollSchema.methods.toJSON = function () {
+//     var poll = this;
+//     var pollObject = poll.toObject();
+//     return _.pick(pollObject, ['_id', 'question', 'options', 'duration']);
+// };
 
 var Poll = mongoose.model('poll', pollSchema);
 
