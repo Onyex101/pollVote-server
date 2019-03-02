@@ -106,13 +106,30 @@ router.post('/get-code', voteAuth, (req, res) => {
     ).then((val) => {
         let test = _.isEmpty(val);
         if (test === true) {
-            res.send({ message: 'Already Voted!' });
+            res.send({ message: 'No authorization' });
         } else {
             Poll.findOne({ code: code.code }).then((poll) => {
                 if (!poll) {
                     res.status(400).send({ message: 'no poll' });
                 };
-                res.send(poll);
+                PollList.findOne({
+                    _pollID: poll._id,
+                    hasVoted: {
+                        $elemMatch: {
+                            full_name: req.voter.full_name,
+                            user_name: req.voter.user_name
+                        }
+                    }
+                }).then((pl) => {
+                    let test = _.isEmpty(pl);
+                    if (test === false) {
+                        res.send({ message: 'Already Voted!' });
+                    } else {
+                        res.send(poll);
+                    }
+                }).catch((e) => {
+                    res.status(400).send(e);
+                })
             }).catch((err) => {
                 res.status(400).send(err);
             });
@@ -154,7 +171,7 @@ router.post('/poll', voteAuth, (req, res) => {
                 }).then((pl) => {
                     let test = _.isEmpty(pl);
                     if (test === false) {
-                        res.status(400).send({message: 'Already voted'});
+                        res.status(400).send({ message: 'Already Voted!' });
                     } else {
                         Poll.findOneAndUpdate({
                             code: body.code,
@@ -163,7 +180,7 @@ router.post('/poll', voteAuth, (req, res) => {
                                 $inc: {
                                     "options.$.votes": 1
                                 }
-                            }).then((p2) => {
+                            }).then(() => {
                                 PollList.findOneAndUpdate({
                                     _pollID: poll._id,
                                     notVoted: {
@@ -186,21 +203,43 @@ router.post('/poll', voteAuth, (req, res) => {
                                             }
                                         }
                                     }).then(() => {
-                                        res.send({message: 'vote succesfull'})
+                                        Poll.findOne({
+                                            code: body.code
+                                        }).then((p) => {
+                                            var data = p.options;
+                                            var a = 0;
+                                            data.forEach((element) => {
+                                                a += element.votes
+                                            });
+                                            var listObjects = [];
+                                            data.forEach((element) => {
+                                                var singleObj = {};
+                                                singleObj['value'] = Math.round(((element.votes) / a) * 100);
+                                                singleObj['votes'] = element.votes;
+                                                singleObj['field'] = element.field;
+                                                singleObj['_id'] = element._id;
+                                                listObjects.push(singleObj);
+                                            });
+                                            var payload = { title: p.question, options: listObjects, duration: p.duration };
+                                            pusher.trigger(poll.code, 'new-entry', payload);
+                                            res.send(payload);
+                                        }).catch((e4) => {
+                                            res.status(400).send({ e3 });
+                                        });
                                     }).catch((e3) => {
-                                        res.status(400).send({e3});
+                                        res.status(400).send({ e3 });
                                     });
                             }).catch((err) => res.status(400).send({ err }));
                     }
                 }).catch((e1) => {
-                    res.status(400).send({e1})
+                    res.status(400).send({ e1 })
                 })
             }).catch((e) => {
-                res.status(400).send({e});
+                res.status(400).send({ e });
             });
         }
     }).catch((error) => {
-        res.status(400).send({error});
+        res.status(400).send({ error });
     });
 });
 
@@ -224,7 +263,7 @@ router.post('/results', voteAuth, (req, res) => {
             listObjects.push(singleObj);
         });
         var payload = { title: poll.question, options: listObjects, duration: poll.duration };
-        //pusher.trigger('vote-channel', 'new-entry', payload);
+        pusher.trigger(poll.code, 'new-entry', payload);
         res.send(payload);
     }).catch((e) => {
         res.status(400).send({ e });

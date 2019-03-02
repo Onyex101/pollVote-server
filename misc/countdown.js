@@ -4,13 +4,13 @@ const { Archive } = require('./../models/archive');
 
 var Timer = (period, pollID, duration) => {
     var x = setInterval(() => {
-        console.log('timeLeft', period);
+        //console.log('timeLeft', period);
         Poll.findOneAndUpdate({_id: pollID}, {
             $set: {
                 duration: period
             }
         }).then(() => {
-            console.log('duration updated');
+            //console.log('duration updated');
         }).catch((err) => {
             console.log(err);
         });
@@ -30,7 +30,7 @@ var Timer = (period, pollID, duration) => {
                     };
                     var newArchive = new Archive(body);
                     newArchive.save().then((arch) => {
-                        console.log('archive successfully saved', arch);
+                        //console.log('archive successfully saved', arch);
                     }).catch((e) => {
                         console.log('archive error', e);
                     });
