@@ -13,6 +13,7 @@ var { Poll } = require('./../../models/poll');
 var { Archive } = require('./../../models/archive');
 var { PollList } = require('./../../models/pollList');
 var { voteList } = require('./../../misc/voteList');
+var notification = require('./../../firebase/push-notification');
 
 var router = express.Router();
 router.use(bodyParser.urlencoded({ extended: true }));
@@ -98,6 +99,13 @@ router.post('/new-poll', authenticate, (req, res) => {
         newList.save().then((list) => {
             console.log('success: ', list);
             var userDet = req.user;
+            var payload = {
+                notification: {
+                    title: user_name + ' created a new poll',
+                    body: "check it out"
+                }
+            };
+            notification(payload);
             voteList(userDet, poll._id);
         }).catch((e1) => {
             console.log(e1);
@@ -225,7 +233,7 @@ router.get('/results', authenticate, (req, res) => {
             listObjects.push(singleObj);
         });
         console.log(listObjects);
-        var payload = { 
+        var payload = {
             title: poll.question,
             id: poll._id,
             options: listObjects,
@@ -355,7 +363,7 @@ router.get('/archive', authenticate, (req, res) => {
     Archive.find({
         code: req.user.code
     }).then((archive) => {
-        res.send({archive});
+        res.send({ archive });
     }).catch((err) => {
         res.status(400).send(err);
     });
@@ -371,12 +379,12 @@ router.post('/lists', authenticate, (req, res) => {
         _pollID: body.id
     }).then((list) => {
         if (!list) {
-            res.status(400).send({message: 'no list found'});
+            res.status(400).send({ message: 'no list found' });
         };
         var payload = _.pick(list, ['notVoted', 'hasVoted']);
         res.send(payload);
     }).catch((err) => {
-        res.status(400).send({err});
+        res.status(400).send({ err });
     })
 });
 

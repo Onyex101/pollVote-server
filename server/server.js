@@ -18,7 +18,6 @@ app.use('/admin', adminController);
 app.use('/user', userController);
 app.set('view engine', 'hbs');
 
-
 app.listen(port, () => {
     console.log(`server started at ${port}`);
 });
