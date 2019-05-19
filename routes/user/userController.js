@@ -248,6 +248,7 @@ router.post('/results', voteAuth, (req, res) => {
     Poll.findOne({
         code: body.code
     }).then((poll) => {
+        console.log(poll);
         var data = poll.options;
         var a = 0;
         data.forEach((element) => {
@@ -266,7 +267,7 @@ router.post('/results', voteAuth, (req, res) => {
         pusher.trigger(poll.code, 'new-entry', payload);
         res.send(payload);
     }).catch((e) => {
-        res.status(400).send({ e });
+        res.status(400).send(e);
     });
 })
 
