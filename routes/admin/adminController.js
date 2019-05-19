@@ -70,8 +70,8 @@ router.post('/new-poll', authenticate, (req, res) => {
     var newDate = new Date(date).getTime();
     newDate = newDate - (3600 * 1000);
     var now = new Date().getTime();
-    console.log('now date', now);
-    console.log('new date property', newDate);
+    // console.log('now date', now);
+    // console.log('new date property', newDate);
     var archives = {
         startDate: now,
         endDate: newDate
@@ -97,8 +97,6 @@ router.post('/new-poll', authenticate, (req, res) => {
         };
         var newList = new PollList(poll_list);
         newList.save().then((list) => {
-            console.log('success: ', list);
-            var userDet = req.user;
             var payload = {
                 notification: {
                     title: user_name + ' created a new poll',
@@ -106,9 +104,9 @@ router.post('/new-poll', authenticate, (req, res) => {
                 }
             };
             notification(payload);
-            voteList(userDet, poll._id);
+            voteList(poll.code, poll._id);
         }).catch((e1) => {
-            console.log(e1);
+            // console.log(e1);
         });
         res.send({ message: 'new poll created' });
     }).catch((err) => {
@@ -170,7 +168,9 @@ router.get('/pending', authenticate, (req, res) => {
 router.post('/pend-auth', authenticate, (req, res) => {
     var body = req.body;
     var id = req.user._id;
+    var code = req.user.code;
     for (var i = 0; i < body.pending.length; i++) {
+        var count = i;
         var pend = body.pending[i];
         User.updateOne({
             _id: id,
@@ -189,13 +189,16 @@ router.post('/pend-auth', authenticate, (req, res) => {
                     authorised: pend
                 }
             }).then(() => {
-
-            }).catch((err) => {
-                res.status(400).send(err);
+            }).catch((e) => {
+                console.log('e', e);
             });
+        if (count === ((body.pending.length) - 1)) {
+            Poll.findOne({code: code}).then((poll) => {
+                voteList(poll.code, poll._id);
+                res.send({ message: 'voter was succesfully authorized' });
+            });
+        }
     }
-    // voteList(req.user._id);
-    res.send({ message: 'voter was succesfully authorized' });
 });
 
 /**
@@ -232,7 +235,7 @@ router.get('/results', authenticate, (req, res) => {
             singleObj['_id'] = element._id;
             listObjects.push(singleObj);
         });
-        console.log(listObjects);
+        // console.log(listObjects);
         var payload = {
             title: poll.question,
             id: poll._id,
@@ -275,7 +278,7 @@ router.post('/forgot-password', (req, res) => {
             };
             var secret = user.password + '-' + user.createdAt;
             var token = jwt.sign(payload, secret);
-            console.log('user token', token);
+            // console.log('user token', token);
             sgMail.setApiKey(process.env.SENDGRID_API_KEY);
             const msg = {
                 to: user.email,
@@ -287,7 +290,7 @@ router.post('/forgot-password', (req, res) => {
                     'If you did not request this, please ignore this email and your password will remain unchanged.\n'
             };
             sgMail.send(msg).then((data) => {
-                console.log('success');
+                // console.log('success');
                 res.send({ message: 'please check your mail' });
             }).catch((err) => {
                 res.status(400).send(err);
